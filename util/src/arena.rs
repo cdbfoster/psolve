@@ -1,19 +1,20 @@
 use std::fmt;
 use std::mem::{self, MaybeUninit};
-use std::ptr;
 
-pub struct Arena<T> {
-    buffer: *mut MaybeUninit<T>,
+pub struct Arena {
+    buffer: *mut u8,
+    cur: *mut u8,
     capacity: usize,
     len: usize,
 }
 
-impl<T> Arena<T> {
-    pub fn with_capacity(capacity: usize) -> Self {
-        let mut vec = Vec::with_capacity(capacity);
+impl Arena {
+    pub fn with_capacity(bytes: usize) -> Self {
+        let mut vec = Vec::with_capacity(bytes);
 
         let arena = Self {
             buffer: vec.as_mut_ptr(),
+            cur: vec.as_mut_ptr(),
             capacity: vec.capacity(),
             len: 0,
         };
@@ -30,30 +31,23 @@ impl<T> Arena<T> {
         self.len
     }
 
-    pub fn allocate(&mut self, n: usize) -> Result<*mut MaybeUninit<T>, Error> {
-        if self.capacity >= self.len + n {
-            let ptr = unsafe { self.buffer.offset(self.len as isize) };
-            self.len += n;
-            Ok(ptr)
+    pub fn allocate<T>(&mut self, n: usize) -> Result<*mut MaybeUninit<T>, Error> {
+        let offset = self.cur.align_offset(mem::align_of::<T>());
+        let size = n * mem::size_of::<T>();
+        let new_len = self.len + offset + size;
+
+        if self.capacity >= new_len {
+            let ptr = unsafe { self.cur.offset(offset as isize) };
+            self.cur = unsafe { ptr.offset(size as isize) };
+            self.len = new_len;
+            Ok(ptr as *mut MaybeUninit<T>)
         } else {
             Err(Error::OutOfMemory)
         }
     }
-
-    /// Unsafe because we can't guarantee that nobody still has a pointer into us,
-    /// or that every T we handed out was initialized.
-    pub unsafe fn drop_all(this: Self) {
-        let mut vec = Vec::from_raw_parts(this.buffer, this.len, this.capacity);
-
-        for item in &mut vec {
-            ptr::drop_in_place(item.as_mut_ptr());
-        }
-
-        mem::forget(vec); // We'll let Arena's drop code deallocate the buffer.
-    }
 }
 
-impl<T> Drop for Arena<T> {
+impl Drop for Arena {
     fn drop(&mut self) {
         let _vec = unsafe { Vec::from_raw_parts(self.buffer, self.len, self.capacity) };
     }
