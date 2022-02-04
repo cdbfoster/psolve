@@ -2,4 +2,5 @@
 
 members = [
     "poker",
+    "util",
 ]
