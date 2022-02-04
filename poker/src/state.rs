@@ -31,4 +31,8 @@ impl<T, const N: usize> State<T, N> {
             .find(|&p| !self.player_folded[p])
             .map(|p| Player(p as u8))
     }
+
+    pub fn current_pot(&self) -> Value {
+        self.pot + self.player_committed.iter().sum::<Value>()
+    }
 }
