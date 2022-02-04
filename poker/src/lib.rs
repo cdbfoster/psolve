@@ -6,7 +6,7 @@ use std::mem;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-pub type Value = f32;
+pub type Value = u32;
 
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(u8)]
