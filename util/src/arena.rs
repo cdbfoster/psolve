@@ -55,9 +55,7 @@ impl<T> Arena<T> {
 
 impl<T> Drop for Arena<T> {
     fn drop(&mut self) {
-        let _vec = unsafe {
-            Vec::from_raw_parts(self.buffer, self.len, self.capacity)
-        };
+        let _vec = unsafe { Vec::from_raw_parts(self.buffer, self.len, self.capacity) };
     }
 }
 
@@ -72,4 +70,4 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error { }
+impl std::error::Error for Error {}
