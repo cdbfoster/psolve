@@ -1,5 +1,6 @@
 use std::fmt;
 use std::mem::{self, MaybeUninit};
+use std::ptr;
 
 pub struct Arena {
     buffer: *mut u8,
@@ -65,3 +66,50 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+pub struct DummyArena {
+    cur: *mut u8,
+    capacity: Option<usize>,
+    len: usize,
+}
+
+impl DummyArena {
+    pub fn with_capacity(bytes: usize) -> Self {
+        Self {
+            cur: ptr::null_mut(),
+            capacity: Some(bytes),
+            len: 0,
+        }
+    }
+
+    pub fn infinite() -> Self {
+        Self {
+            cur: ptr::null_mut(),
+            capacity: None,
+            len: 0,
+        }
+    }
+
+    pub fn capacity(&self) -> Option<usize> {
+        self.capacity
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn allocate<T>(&mut self, n: usize) -> Result<(), Error> {
+        let offset = self.cur.align_offset(mem::align_of::<T>());
+        let size = n * mem::size_of::<T>();
+        let new_len = self.len + offset + size;
+
+        if self.capacity.is_none() || self.capacity.unwrap() >= new_len {
+            let ptr = self.cur.wrapping_offset(offset as isize);
+            self.cur = ptr.wrapping_offset(size as isize);
+            self.len = new_len;
+            Ok(())
+        } else {
+            Err(Error::OutOfMemory)
+        }
+    }
+}
