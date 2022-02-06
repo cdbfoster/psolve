@@ -1,18 +1,18 @@
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-use crate::card::Card;
+use crate::card::{Card, CardRange};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Deck<const N: usize> {
-    len: u8,
+    range: CardRange,
     cards: [Card; N],
 }
 
 pub fn full_deck() -> Deck<52> {
     use Card::*;
     Deck {
-        len: 52,
+        range: CardRange::from_parts(C2, SA, 0xFFFFFFFFFFFFFFFF >> 12),
         #[rustfmt::skip]
         cards: [
             C2, C3, C4, C5, C6, C7, C8, C9, CT, CJ, CQ, CK, CA,
@@ -24,23 +24,37 @@ pub fn full_deck() -> Deck<52> {
 }
 
 impl<const N: usize> Deck<N> {
+    pub fn from_cards(cards: [Card; N]) -> Self {
+        Self {
+            range: CardRange::from_cards(&cards),
+            cards,
+        }
+    }
+
     pub fn len(&self) -> usize {
-        self.len as usize
+        self.range.len()
     }
 
     pub fn shuffle<R: Rng>(&mut self, rng: &mut R) {
-        let l = self.len();
-        self.cards[0..l].shuffle(rng);
+        self.cards.shuffle(rng);
     }
 
     pub fn deal_card(&mut self) -> Card {
         assert!(self.len() > 0, "not enough cards remaining");
-        self.len -= 1;
-        self.cards[self.len() + 1]
+        let c = self.cards[self.len() - 1];
+        self.range.remove(c);
+        c
     }
 
     pub fn deal_cards(&mut self, cards: &mut [Card]) {
         assert!(self.len() >= cards.len(), "not enough cards remaining");
         cards.copy_from_slice(&self.cards[self.len() - cards.len()..self.len()]);
+        for &mut c in cards {
+            self.range.remove(c);
+        }
+    }
+
+    pub fn contains(&self, card: Card) -> bool {
+        self.range.contains(card)
     }
 }
