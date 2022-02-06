@@ -27,11 +27,23 @@ pub enum KuhnAction {
     Check, // Also fold if not the first bettor.
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct KuhnState<const N: usize> {
     cards: [u8; N],
-    bettor: Option<u8>,
+    bet: bool,
     called: [bool; N],
     stage: KuhnStage,
+}
+
+impl<const N: usize> KuhnState<N> {
+    pub fn from_cards(cards: [u8; N]) -> Self {
+        Self {
+            cards,
+            bet: false,
+            called: [false; N],
+            stage: KuhnStage::PlayerAction(0),
+        }
+    }
 }
 
 pub struct KuhnGameProgression<const N: usize>;
@@ -45,17 +57,31 @@ impl<const N: usize> GameProgression for KuhnGameProgression<N> {
     fn advance_state(state: &mut Self::State, event: Event<Self::Action, Self::Chance>) {
         if let Event::Action(action) = event {
             if let KuhnStage::PlayerAction(player) = state.stage {
-                if let Some(bettor) = state.bettor {
+                let next_player = (player + 1) as usize % N;
+
+                if state.bet {
                     if matches!(action, KuhnAction::Bet) {
                         // This is a call.
                         state.called[player as usize] = true;
                     }
 
-                    let next_player = (player + 1) as usize % N;
-                    if state.called[next_player] || next_player == bettor as usize {
+                    if state.called[next_player] {
                         state.stage = KuhnStage::Showdown;
                     } else {
                         state.stage = KuhnStage::PlayerAction(next_player as u8);
+                    }
+                } else {
+                    if matches!(action, KuhnAction::Bet) {
+                        // This is a bet.
+                        state.bet = true;
+                        state.called[player as usize] = true;
+                        state.stage = KuhnStage::PlayerAction(next_player as u8);
+                    } else {
+                        if next_player < player as usize {
+                            state.stage = KuhnStage::Showdown;
+                        } else {
+                            state.stage = KuhnStage::PlayerAction(next_player as u8);
+                        }
                     }
                 }
             } else {
