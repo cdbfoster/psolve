@@ -28,6 +28,24 @@ impl Card {
     pub fn suit(self) -> Suit {
         unsafe { mem::transmute(self as u8 & 0xF0) }
     }
+
+    pub fn next(self) -> Option<Self> {
+        let r = self.rank();
+        let s = self.suit();
+
+        r.next()
+            .map(|r| Self::from_rank_and_suit(r, s))
+            .or_else(|| s.next().map(|s| Self::from_rank_and_suit(r, s)))
+    }
+
+    pub fn previous(self) -> Option<Self> {
+        let r = self.rank();
+        let s = self.suit();
+
+        r.previous()
+            .map(|r| Self::from_rank_and_suit(r, s))
+            .or_else(|| s.previous().map(|s| Self::from_rank_and_suit(r, s)))
+    }
 }
 
 impl fmt::Debug for Card {

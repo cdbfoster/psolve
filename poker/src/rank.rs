@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Write};
 use std::mem;
 
@@ -18,6 +18,16 @@ pub enum Rank {
     Queen,
     King,
     Ace,
+}
+
+impl Rank {
+    pub fn next(self) -> Option<Self> {
+        (self as u8 + 1).try_into().ok()
+    }
+
+    pub fn previous(self) -> Option<Rank> {
+        (self as u8 - 1).try_into().ok()
+    }
 }
 
 impl fmt::Debug for Rank {

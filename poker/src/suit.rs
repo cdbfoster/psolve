@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Write};
 
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -8,6 +8,16 @@ pub enum Suit {
     Diamonds = 0x20,
     Hearts = 0x30,
     Spades = 0x40,
+}
+
+impl Suit {
+    pub fn next(self) -> Option<Self> {
+        (self as u8 + 0x10).try_into().ok()
+    }
+
+    pub fn previous(self) -> Option<Self> {
+        (self as u8 - 0x10).try_into().ok()
+    }
 }
 
 impl fmt::Debug for Suit {
