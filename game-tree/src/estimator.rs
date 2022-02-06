@@ -49,11 +49,11 @@ where
         self.parameters
     }
 
-    /// Returns a pessimistic estimate of the number of bytes the tree will occupy in memory.
-    /// This will be the exact amount + the worst-case alignment offset.
-    pub fn memory_estimate(&self) -> usize {
+    /// Returns the minimum and maximum number of bytes the tree will occupy in memory.
+    /// The maximum is the exact amount + the worst-case alignment offset.
+    pub fn memory_bounds(&self) -> (usize, usize) {
         let max_offset = mem::align_of::<RootNode>() - 1;
-        self.arena.len() + max_offset
+        (self.arena.len(), self.arena.len() + max_offset)
     }
 
     fn build_tree(&mut self, state: G::State, events: &mut Vec<Event<G::Action, G::Chance>>) {
