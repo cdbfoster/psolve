@@ -72,7 +72,7 @@ where
                 .unwrap();
             self.action += events.len();
 
-            let parameters = P::get_parameter_count(&state);
+            let parameters = events.len() * P::get_parameter_count(&state);
             self.arena.allocate::<P::Parameter>(parameters).unwrap();
             self.parameters += parameters;
         } else {
