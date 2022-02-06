@@ -2,6 +2,7 @@
 
 members = [
     "game-tree",
+    "kuhn",
     "poker",
     "util",
 ]
