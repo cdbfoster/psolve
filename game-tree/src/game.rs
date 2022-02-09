@@ -5,6 +5,7 @@ pub trait GameProgression {
     type Action: Copy;
     type Chance: Copy;
     type State;
+    type Utility;
 
     fn advance_state(state: &mut Self::State, event: Event<Self::Action, Self::Chance>);
 
@@ -21,6 +22,8 @@ pub trait GameProgression {
     /// a node's children is appropriate.  For instance, a solver might want to avoid expanding
     /// very large chance nodes in a progressive tree search.
     fn get_branching_hint(state: &Self::State) -> usize;
+
+    fn get_terminal_utilities(state: &Self::State, utilities: &mut [Self::Utility]);
 }
 
 pub trait ParameterMap {

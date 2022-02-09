@@ -53,6 +53,7 @@ impl<const N: usize> GameProgression for KuhnGameProgression<N> {
     type Action = KuhnAction;
     type Chance = ();
     type State = KuhnState<N>;
+    type Utility = f32;
 
     fn advance_state(state: &mut Self::State, event: Event<Self::Action, Self::Chance>) {
         if let Event::Action(action) = event {
@@ -114,6 +115,43 @@ impl<const N: usize> GameProgression for KuhnGameProgression<N> {
             KuhnStage::PlayerAction(_) => 2,
             KuhnStage::Showdown => 0,
         }
+    }
+
+    fn get_terminal_utilities(state: &Self::State, utilities: &mut [Self::Utility]) {
+        assert!(
+            matches!(state.stage, KuhnStage::Showdown),
+            "stage must be showdown to calculate utility"
+        );
+        assert_eq!(utilities.len(), N, "utility array is the wrong length");
+
+        let pot = N + state.called.iter().filter(|&&b| b).count();
+
+        let winner = if state.bet {
+            state
+                .cards
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| state.called[*i])
+                .max_by_key(|(_, &c)| c)
+                .map(|(i, _)| i)
+                .unwrap()
+        } else {
+            state
+                .cards
+                .iter()
+                .enumerate()
+                .max_by_key(|(_, &c)| c)
+                .map(|(i, _)| i)
+                .unwrap()
+        };
+
+        utilities.iter_mut().enumerate().for_each(|(i, u)| {
+            if i == winner {
+                *u = pot as f32;
+            } else {
+                *u = if state.called[i] { -2.0 } else { -1.0 }
+            }
+        });
     }
 }
 
