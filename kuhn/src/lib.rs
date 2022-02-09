@@ -173,3 +173,24 @@ impl<const N: usize> ParameterMap for KuhnParameterMap<N> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use game_tree::TreeEstimator;
+
+    #[test]
+    fn tree_estimate() {
+        const N: usize = 3;
+
+        let root_state = KuhnState::from_cards([0; N]);
+        let estimator =
+            TreeEstimator::<KuhnGameProgression<N>, KuhnParameterMap<N>>::from_root(root_state);
+
+        assert_eq!(estimator.action_nodes(), 24);
+        assert_eq!(estimator.chance_nodes(), 0);
+        assert_eq!(estimator.parameters(), 96);
+        assert_eq!(estimator.memory_bounds(), (1544, 1551));
+    }
+}
