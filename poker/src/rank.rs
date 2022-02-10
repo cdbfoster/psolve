@@ -54,7 +54,7 @@ impl TryFrom<u8> for Rank {
     type Error = &'static str;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= 2 && value <= 14 {
+        if (2..=14).contains(&value) {
             Ok(unsafe { mem::transmute(value) })
         } else {
             Err("invalid card rank")

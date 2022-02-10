@@ -71,19 +71,17 @@ impl<const N: usize> GameProgression for KuhnGameProgression<N> {
                     } else {
                         state.stage = KuhnStage::PlayerAction(next_player as u8);
                     }
+                } else if matches!(action, KuhnAction::Bet) {
+                    // This is a bet.
+                    state.bet = true;
+                    state.called[player as usize] = true;
+                    state.stage = KuhnStage::PlayerAction(next_player as u8);
+                } else if next_player < player as usize {
+                    // This is a check, as the last player to act.
+                    state.stage = KuhnStage::Showdown;
                 } else {
-                    if matches!(action, KuhnAction::Bet) {
-                        // This is a bet.
-                        state.bet = true;
-                        state.called[player as usize] = true;
-                        state.stage = KuhnStage::PlayerAction(next_player as u8);
-                    } else {
-                        if next_player < player as usize {
-                            state.stage = KuhnStage::Showdown;
-                        } else {
-                            state.stage = KuhnStage::PlayerAction(next_player as u8);
-                        }
-                    }
+                    // This is a check, with more players to act after.
+                    state.stage = KuhnStage::PlayerAction(next_player as u8);
                 }
             } else {
                 panic!("cannot advance a state that is at showdown");

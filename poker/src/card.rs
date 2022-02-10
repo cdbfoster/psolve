@@ -95,6 +95,10 @@ impl CardRange {
         self.len as usize
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn contains(&self, card: Card) -> bool {
         self.present & 1u64 << (card_index(card) - self.start) == 1
     }

@@ -9,6 +9,7 @@ pub struct Arena {
     len: usize,
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl Arena {
     pub fn with_capacity(bytes: usize) -> Self {
         let mut vec = Vec::with_capacity(bytes);
@@ -38,8 +39,8 @@ impl Arena {
         let new_len = self.len + offset + size;
 
         if self.capacity >= new_len {
-            let ptr = unsafe { self.cur.offset(offset as isize) };
-            self.cur = unsafe { ptr.offset(size as isize) };
+            let ptr = unsafe { self.cur.add(offset) };
+            self.cur = unsafe { ptr.add(size) };
             self.len = new_len;
             Ok(ptr as *mut MaybeUninit<T>)
         } else {
@@ -73,6 +74,7 @@ pub struct DummyArena {
     len: usize,
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl DummyArena {
     pub fn with_capacity(bytes: usize) -> Self {
         Self {
@@ -104,8 +106,8 @@ impl DummyArena {
         let new_len = self.len + offset + size;
 
         if self.capacity.is_none() || self.capacity.unwrap() >= new_len {
-            let ptr = self.cur.wrapping_offset(offset as isize);
-            self.cur = ptr.wrapping_offset(size as isize);
+            let ptr = self.cur.wrapping_add(offset);
+            self.cur = ptr.wrapping_add(size);
             self.len = new_len;
             Ok(())
         } else {

@@ -35,12 +35,16 @@ impl<const N: usize> Deck<N> {
         self.range.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.range.is_empty()
+    }
+
     pub fn shuffle<R: Rng>(&mut self, rng: &mut R) {
         self.cards.shuffle(rng);
     }
 
     pub fn deal_card(&mut self) -> Card {
-        assert!(self.len() > 0, "not enough cards remaining");
+        assert!(!self.is_empty(), "not enough cards remaining");
         let c = self.cards[self.len() - 1];
         self.range.remove(c);
         c
