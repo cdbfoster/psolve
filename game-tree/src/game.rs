@@ -2,13 +2,16 @@ use std::mem::MaybeUninit;
 
 use rand::Rng;
 
-pub trait GameProgression {
-    type Stage: Stage;
+pub trait GameTypes {
     type Action: Copy;
     type Chance: Copy;
+    type ParameterMapping: ParameterMapping<State = Self::State>;
+    type Stage: Stage;
     type State;
     type Utility;
+}
 
+pub trait GameProgression: GameTypes {
     fn advance_state(state: &mut Self::State, event: Event<Self::Action, Self::Chance>);
 
     /// Solvers will assume that all events placed into the array are of the same Event variant.
