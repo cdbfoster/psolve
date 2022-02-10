@@ -3,22 +3,22 @@ use std::mem;
 
 use util::arena::DummyArena;
 
-use crate::game::{Event, GameProgression, ParameterMap, Stage};
+use crate::game::{Event, GameProgression, ParameterMapping, Stage};
 use crate::node::{ActionNode, ChanceNode, RootNode};
 
-pub struct TreeEstimator<G, P> {
+pub struct TreeEstimator<G, M, P> {
     action: usize,
     chance: usize,
     parameters: usize,
     arena: DummyArena,
-    _marker: PhantomData<(G, P)>,
+    _marker: PhantomData<(G, M, P)>,
 }
 
-impl<G, P> TreeEstimator<G, P>
+impl<G, M, P> TreeEstimator<G, M, P>
 where
     G: GameProgression,
     G::State: Clone,
-    P: ParameterMap<State = G::State>,
+    M: ParameterMapping<State = G::State>,
 {
     pub fn from_root(root_state: G::State) -> Self {
         let mut estimator = Self {
@@ -68,12 +68,12 @@ where
 
         if !stage.is_chance() {
             self.arena
-                .allocate::<ActionNode<G::Action, P::Parameter>>(events.len())
+                .allocate::<ActionNode<G::Action, P>>(events.len())
                 .unwrap();
             self.action += events.len();
 
-            let parameters = events.len() * P::get_parameter_count(&state);
-            self.arena.allocate::<P::Parameter>(parameters).unwrap();
+            let parameters = events.len() * M::get_parameter_count(&state);
+            self.arena.allocate::<P>(parameters).unwrap();
             self.parameters += parameters;
         } else {
             self.arena

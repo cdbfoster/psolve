@@ -1,3 +1,5 @@
+use std::mem::MaybeUninit;
+
 use rand::Rng;
 
 pub trait GameProgression {
@@ -26,9 +28,8 @@ pub trait GameProgression {
     fn get_terminal_utilities(state: &Self::State, utilities: &mut [Self::Utility]);
 }
 
-pub trait ParameterMap {
+pub trait ParameterMapping {
     type State;
-    type Parameter;
 
     fn get_parameter_count(state: &Self::State) -> usize;
     fn get_parameter_index(state: &Self::State) -> usize;
@@ -37,6 +38,12 @@ pub trait ParameterMap {
 pub trait Stage {
     fn is_chance(&self) -> bool;
     fn is_terminal(&self) -> bool;
+}
+
+pub trait Parameter {
+    fn initialize(parameters: *mut MaybeUninit<Self>, count: usize) -> *mut Self
+    where
+        Self: Sized;
 }
 
 #[derive(Clone, Copy, Debug)]
