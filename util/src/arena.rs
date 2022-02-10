@@ -47,6 +47,11 @@ impl Arena {
             Err(Error::OutOfMemory)
         }
     }
+
+    #[cfg(feature = "testing")]
+    pub fn dump(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.buffer, self.len) }
+    }
 }
 
 impl Drop for Arena {

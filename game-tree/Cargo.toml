@@ -9,3 +9,7 @@ edition = "2018"
 [dependencies]
 rand = "0.8"
 util = { path = "../util" }
+
+[dev-dependencies.util]
+path = "../util"
+features = ["testing"]
