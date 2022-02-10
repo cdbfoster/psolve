@@ -1,4 +1,5 @@
 use std::cell::UnsafeCell;
+use std::fmt;
 use std::ptr;
 
 #[repr(transparent)]
@@ -22,5 +23,14 @@ where
         unsafe {
             ptr::write_volatile(self.0.get(), value);
         }
+    }
+}
+
+impl<T> fmt::Debug for Volatile<T>
+where
+    T: Copy + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Volatile").field(&self.read()).finish()
     }
 }
