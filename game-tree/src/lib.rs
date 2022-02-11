@@ -3,6 +3,9 @@ mod estimator;
 mod game;
 mod node;
 
+#[cfg(test)]
+mod dummy;
+
 pub use self::allocator::TreeAllocator;
 pub use self::estimator::TreeEstimator;
 pub use self::game::{Event, GameProgression, GameTypes, Parameter, ParameterMapping, Stage};
