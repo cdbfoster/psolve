@@ -96,10 +96,10 @@ mod tests {
 
     use std::sync::{Arc, Mutex};
 
-    use util::arena::{Arena, Error};
+    use util::arena::Arena;
 
     use crate::dummy::*;
-    use crate::game::{Event, GameTypes, Parameter, ParameterMapping};
+    use crate::game::Event;
     use crate::TreeAllocator;
 
     #[test]

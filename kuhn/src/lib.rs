@@ -181,7 +181,7 @@ mod tests {
     use game_tree::TreeEstimator;
 
     #[test]
-    fn tree_estimate() {
+    fn test_tree_estimate() {
         const N: usize = 3;
 
         type CfrParameter = [f32; 2];
