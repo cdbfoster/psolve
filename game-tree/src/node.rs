@@ -89,3 +89,52 @@ impl Iterator for NodePtrIterator {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::sync::{Arc, Mutex};
+
+    use util::arena::{Arena, Error};
+
+    use crate::dummy::*;
+    use crate::game::{Event, GameTypes, Parameter, ParameterMapping};
+    use crate::TreeAllocator;
+
+    #[test]
+    fn test_iterator() {
+        let allocator = TreeAllocator::<X, P>::new(Arc::new(Mutex::new(Arena::with_capacity(300))));
+
+        let events = [
+            Event::Action([1; 6]),
+            Event::Action([2; 6]),
+            Event::Action([3; 6]),
+            Event::Action([4; 6]),
+            Event::Action([5; 6]),
+        ];
+
+        let (ptr, slice) = unsafe {
+            let ptr = allocator.allocate(&X, &events).unwrap();
+            (
+                ptr,
+                std::slice::from_raw_parts(ptr as *const ActionNode<[u8; 6], P>, events.len()),
+            )
+        };
+
+        let iter = NodePtrIterator::new(ptr).collect::<Vec<_>>();
+
+        assert_eq!(
+            iter.len(),
+            slice.len(),
+            "incorrect number of values returned"
+        );
+
+        for (i, j) in iter
+            .into_iter()
+            .zip(slice.iter().map(|n| n as *const ActionNode<[u8; 6], u8>))
+        {
+            assert_eq!(i as *const (), j as *const (), "incorrect sibling");
+        }
+    }
+}
