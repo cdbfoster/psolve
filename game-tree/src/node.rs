@@ -2,6 +2,8 @@ use util::volatile::Volatile;
 
 pub trait Node {
     fn next_sibling(&self) -> Option<*mut Self>;
+    /// Caller must ensure that `child` is the same type as any other children.
+    fn add_child(&self, child: NodePtr);
 }
 
 /// This will point to a node type.  The game state will know which.
@@ -22,6 +24,16 @@ impl RootNode {
 impl Node for RootNode {
     fn next_sibling(&self) -> Option<*mut Self> {
         None
+    }
+
+    fn add_child(&self, child: NodePtr) {
+        let sibling = self.first_child.read();
+        if !sibling.is_null() {
+            unsafe {
+                *(child as *mut NodePtr) = sibling;
+            }
+        }
+        self.first_child.write(child);
     }
 }
 
@@ -45,6 +57,16 @@ impl<A, P> Node for ActionNode<A, P> {
     fn next_sibling(&self) -> Option<*mut Self> {
         (!self.next_sibling.is_null()).then(|| self.next_sibling)
     }
+
+    fn add_child(&self, child: NodePtr) {
+        let sibling = self.first_child.read();
+        if !sibling.is_null() {
+            unsafe {
+                *(child as *mut NodePtr) = sibling;
+            }
+        }
+        self.first_child.write(child);
+    }
 }
 
 #[repr(C)]
@@ -65,6 +87,16 @@ impl<C> ChanceNode<C> {
 impl<C> Node for ChanceNode<C> {
     fn next_sibling(&self) -> Option<*mut Self> {
         (!self.next_sibling.is_null()).then(|| self.next_sibling)
+    }
+
+    fn add_child(&self, child: NodePtr) {
+        let sibling = self.first_child.read();
+        if !sibling.is_null() {
+            unsafe {
+                *(child as *mut NodePtr) = sibling;
+            }
+        }
+        self.first_child.write(child);
     }
 }
 
