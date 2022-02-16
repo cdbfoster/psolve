@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use util::arena::{Arena, Error};
 use util::volatile::Volatile;
 
-use crate::game::{Event, GameTypes, Parameter, ParameterMapping};
+use crate::game::{Event, Game, Parameter, ParameterMapping};
 use crate::node::{ActionNode, ChanceNode, NodePtr};
 
 #[derive(Clone)]
@@ -16,7 +16,7 @@ pub struct TreeAllocator<G, P> {
 
 impl<G, P> TreeAllocator<G, P>
 where
-    G: GameTypes,
+    G: Game,
     P: Parameter,
 {
     pub fn new(arena: Arc<Mutex<Arena>>) -> Self {
@@ -140,7 +140,7 @@ mod tests {
     use std::mem;
 
     use crate::dummy::*;
-    use crate::{GameTypes, Node, ParameterMapping};
+    use crate::{Game, Node, ParameterMapping};
 
     fn assert_valid_siblings<N: Node>(nodes: &[N]) {
         for i in 0..nodes.len() - 1 {
@@ -156,7 +156,7 @@ mod tests {
         }
     }
 
-    fn assert_valid_parameters<G: GameTypes<State = X>>(nodes: &[ActionNode<G::Action, P>]) {
+    fn assert_valid_parameters<G: Game<State = X>>(nodes: &[ActionNode<G::Action, P>]) {
         let mut parameters = {
             let ptr = nodes.last().unwrap() as *const ActionNode<G::Action, P>;
             let unaligned = ptr.wrapping_add(1) as *const P;

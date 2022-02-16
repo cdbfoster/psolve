@@ -1,6 +1,6 @@
 use rand::Rng;
 
-use game_tree::{Event, GameProgression, GameTypes, ParameterMapping, Stage};
+use game_tree::{Event, Game, ParameterMapping, Stage};
 
 #[derive(Clone, Copy, Debug)]
 pub enum KuhnStage {
@@ -46,18 +46,16 @@ impl<const N: usize> KuhnState<N> {
     }
 }
 
-pub struct KuhnGameProgression<const N: usize>;
+pub struct KuhnGame<const N: usize>;
 
-impl<const N: usize> GameTypes for KuhnGameProgression<N> {
+impl<const N: usize> Game for KuhnGame<N> {
     type Action = KuhnAction;
     type Chance = ();
     type ParameterMapping = KuhnParameterMapping<N>;
     type Stage = KuhnStage;
     type State = KuhnState<N>;
     type Utility = f32;
-}
 
-impl<const N: usize> GameProgression for KuhnGameProgression<N> {
     fn advance_state(state: &mut Self::State, event: Event<Self::Action, Self::Chance>) {
         if let Event::Action(action) = event {
             if let KuhnStage::PlayerAction(player) = state.stage {
@@ -187,8 +185,7 @@ mod tests {
         type CfrParameter = [f32; 2];
 
         let root_state = KuhnState::from_cards([0; N]);
-        let estimator =
-            TreeEstimator::<KuhnGameProgression<N>, CfrParameter>::from_root(root_state);
+        let estimator = TreeEstimator::<KuhnGame<N>, CfrParameter>::from_root(root_state);
 
         assert_eq!(estimator.action_nodes(), 24);
         assert_eq!(estimator.chance_nodes(), 0);

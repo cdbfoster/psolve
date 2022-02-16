@@ -1,6 +1,8 @@
 use std::mem::MaybeUninit;
 
-use crate::{GameTypes, Parameter, ParameterMapping, Stage};
+use rand::Rng;
+
+use crate::{Event, Game, Parameter, ParameterMapping, Stage};
 
 /// Dummy everything.
 pub(crate) struct X;
@@ -26,13 +28,21 @@ impl ParameterMapping for X {
     }
 }
 
-impl GameTypes for X {
+#[rustfmt::skip]
+impl Game for X {
     type Action = [u8; 6];
     type Chance = [u8; 6];
     type ParameterMapping = X;
     type Stage = X;
     type State = X;
     type Utility = u8;
+
+    fn advance_state(_state: &mut Self::State, _event: Event<Self::Action, Self::Chance>) { unimplemented!() }
+    fn populate_events(_state: &Self::State, _events: &mut Vec<Event<Self::Action, Self::Chance>>) { unimplemented!() }
+    fn sample_chance<R: Rng>(_state: &Self::State, _rng: &mut R) -> (Self::Chance, usize) { unimplemented!() }
+    fn get_stage(_state: &Self::State) -> Self::Stage { unimplemented!() }
+    fn get_branching_hint(_state: &Self::State) -> usize { unimplemented!() }
+    fn get_terminal_utilities(_state: &Self::State, _utilities: &mut [Self::Utility]) { unimplemented!() }
 }
 
 impl Parameter for P {

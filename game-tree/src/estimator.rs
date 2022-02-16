@@ -3,7 +3,7 @@ use std::mem;
 
 use util::arena::DummyArena;
 
-use crate::game::{Event, GameProgression, ParameterMapping, Stage};
+use crate::game::{Event, Game, ParameterMapping, Stage};
 use crate::node::{ActionNode, ChanceNode, RootNode};
 
 pub struct TreeEstimator<G, P> {
@@ -16,7 +16,7 @@ pub struct TreeEstimator<G, P> {
 
 impl<G, P> TreeEstimator<G, P>
 where
-    G: GameProgression,
+    G: Game,
     G::State: Clone,
 {
     pub fn from_root(root_state: G::State) -> Self {
