@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::{self, Rng};
 
 use game_tree::{Event, Game, ParameterMapping, Stage};
 
@@ -9,6 +9,13 @@ pub enum KuhnStage {
 }
 
 impl Stage for KuhnStage {
+    fn is_action(&self) -> bool {
+        match self {
+            KuhnStage::PlayerAction(_) => true,
+            KuhnStage::Showdown => false,
+        }
+    }
+
     fn is_chance(&self) -> bool {
         false
     }
@@ -17,6 +24,13 @@ impl Stage for KuhnStage {
         match self {
             KuhnStage::PlayerAction(_) => false,
             KuhnStage::Showdown => true,
+        }
+    }
+
+    fn player_to_act(&self) -> Option<usize> {
+        match self {
+            KuhnStage::PlayerAction(p) => Some(*p as usize),
+            KuhnStage::Showdown => None,
         }
     }
 }
@@ -44,6 +58,19 @@ impl<const N: usize> KuhnState<N> {
             stage: KuhnStage::PlayerAction(0),
         }
     }
+
+    pub fn random<R: Rng>(rng: &mut R) -> Self {
+        let mut cards = [0u8; N];
+
+        for (c, d) in cards
+            .iter_mut()
+            .zip(rand::seq::index::sample(rng, N + 1, N))
+        {
+            *c = d as u8;
+        }
+
+        Self::from_cards(cards)
+    }
 }
 
 pub struct KuhnGame<const N: usize>;
@@ -54,7 +81,6 @@ impl<const N: usize> Game for KuhnGame<N> {
     type ParameterMapping = KuhnParameterMapping<N>;
     type Stage = KuhnStage;
     type State = KuhnState<N>;
-    type Utility = f32;
 
     fn advance_state(state: &mut Self::State, event: Event<Self::Action, Self::Chance>) {
         if let Event::Action(action) = event {
@@ -101,6 +127,10 @@ impl<const N: usize> Game for KuhnGame<N> {
         }
     }
 
+    fn get_chance_weight(_state: &Self::State, _event: Self::Chance) -> f32 {
+        panic!("there are no chance events in kuhn poker")
+    }
+
     fn sample_chance<R: Rng>(_state: &Self::State, _rng: &mut R) -> (Self::Chance, usize) {
         panic!("there are no chance events in kuhn poker")
     }
@@ -116,7 +146,7 @@ impl<const N: usize> Game for KuhnGame<N> {
         }
     }
 
-    fn get_terminal_utilities(state: &Self::State, utilities: &mut [Self::Utility]) {
+    fn get_terminal_utilities(state: &Self::State, utilities: &mut [f32]) {
         assert!(
             matches!(state.stage, KuhnStage::Showdown),
             "stage must be showdown to calculate utility"
@@ -176,7 +206,10 @@ impl<const N: usize> ParameterMapping for KuhnParameterMapping<N> {
 mod tests {
     use super::*;
 
-    use game_tree::TreeEstimator;
+    use std::sync::Mutex;
+
+    use game_tree::{allocate_tree, TreeEstimator};
+    use util::arena::Arena;
 
     #[test]
     fn test_tree_estimate() {
@@ -185,11 +218,12 @@ mod tests {
         type CfrParameter = [f32; 2];
 
         let root_state = KuhnState::from_cards([0; N]);
+
         let estimator = TreeEstimator::<KuhnGame<N>, CfrParameter>::from_root(root_state);
 
         assert_eq!(estimator.action_nodes(), 24);
         assert_eq!(estimator.chance_nodes(), 0);
         assert_eq!(estimator.parameters(), 96);
-        assert_eq!(estimator.memory_bounds(), (1544, 1551));
+        assert_eq!(estimator.memory_bounds(), (1552, 1559));
     }
 }

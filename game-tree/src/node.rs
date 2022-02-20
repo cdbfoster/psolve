@@ -1,103 +1,71 @@
 use util::volatile::Volatile;
 
-pub trait Node {
-    fn next_sibling(&self) -> Option<*mut Self>;
+/// This will point to a node type.  The game state will know which.
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug)]
+pub struct NodePtr(pub *mut ());
+
+impl NodePtr {
+    pub fn new<T>(ptr: *mut T) -> Self {
+        Self(ptr as *mut ())
+    }
+
+    /// Caller must ensure that the iterator returned does not outlive this node.
+    pub fn children(&self) -> NodePtrIterator {
+        let node = self.0 as *mut NodeRelationships;
+        NodePtrIterator::new(unsafe { (*node).first_child.read() })
+    }
+
+    pub fn next_sibling(&self) -> Option<NodePtr> {
+        let node = self.0 as *mut NodeRelationships;
+        let next_sibling = unsafe { (*node).next_sibling };
+        (!next_sibling.0.is_null()).then(|| next_sibling)
+    }
+
     /// Caller must ensure that `child` is the same type as any other children.
-    fn add_child(&self, child: NodePtr);
+    pub fn add_child(&self, child: NodePtr) {
+        let node = self.0 as *mut NodeRelationships;
+        let sibling = unsafe { (*node).first_child.read() };
+        if !sibling.0.is_null() {
+            unsafe {
+                (*(child.0 as *mut NodeRelationships)).next_sibling = sibling;
+            }
+        }
+        unsafe {
+            (*node).first_child.write(child);
+        }
+    }
 }
 
-/// This will point to a node type.  The game state will know which.
-pub type NodePtr = *mut ();
-
-#[derive(Debug)]
-pub struct RootNode {
+/// Must match the layout of the beginning of all node types.
+#[repr(C)]
+pub struct NodeRelationships {
+    pub next_sibling: NodePtr,
     pub first_child: Volatile<NodePtr>,
 }
 
-impl RootNode {
-    /// Caller must ensure that the iterator returned does not outlive this node.
-    pub fn children(&self) -> NodePtrIterator {
-        NodePtrIterator::new(self.first_child.read())
-    }
-}
-
-impl Node for RootNode {
-    fn next_sibling(&self) -> Option<*mut Self> {
-        None
-    }
-
-    fn add_child(&self, child: NodePtr) {
-        let sibling = self.first_child.read();
-        if !sibling.is_null() {
-            unsafe {
-                *(child as *mut NodePtr) = sibling;
-            }
-        }
-        self.first_child.write(child);
-    }
+#[repr(C)]
+#[derive(Debug)]
+pub struct RootNode {
+    pub _pad: *mut (), // Must be first.
+    pub first_child: Volatile<NodePtr>,
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct ActionNode<A, P> {
-    pub next_sibling: *mut ActionNode<A, P>, // Must be first.
+    pub next_sibling: *mut ActionNode<A, P>,
     pub first_child: Volatile<NodePtr>,
     pub parameters: *mut P,
     pub action: A,
 }
 
-impl<A, P> ActionNode<A, P> {
-    /// Caller must ensure that the iterator returned does not outlive this node.
-    pub fn children(&self) -> NodePtrIterator {
-        NodePtrIterator::new(self.first_child.read())
-    }
-}
-
-impl<A, P> Node for ActionNode<A, P> {
-    fn next_sibling(&self) -> Option<*mut Self> {
-        (!self.next_sibling.is_null()).then(|| self.next_sibling)
-    }
-
-    fn add_child(&self, child: NodePtr) {
-        let sibling = self.first_child.read();
-        if !sibling.is_null() {
-            unsafe {
-                *(child as *mut NodePtr) = sibling;
-            }
-        }
-        self.first_child.write(child);
-    }
-}
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct ChanceNode<C> {
-    pub next_sibling: *mut ChanceNode<C>, // Must be first.
+    pub next_sibling: *mut ChanceNode<C>,
     pub first_child: Volatile<NodePtr>,
     pub result: C,
-}
-
-impl<C> ChanceNode<C> {
-    /// Caller must ensure that the iterator returned does not outlive this node.
-    pub fn children(&self) -> NodePtrIterator {
-        NodePtrIterator::new(self.first_child.read())
-    }
-}
-
-impl<C> Node for ChanceNode<C> {
-    fn next_sibling(&self) -> Option<*mut Self> {
-        (!self.next_sibling.is_null()).then(|| self.next_sibling)
-    }
-
-    fn add_child(&self, child: NodePtr) {
-        let sibling = self.first_child.read();
-        if !sibling.is_null() {
-            unsafe {
-                *(child as *mut NodePtr) = sibling;
-            }
-        }
-        self.first_child.write(child);
-    }
 }
 
 pub struct NodePtrIterator {
@@ -114,9 +82,9 @@ impl Iterator for NodePtrIterator {
     type Item = NodePtr;
 
     fn next(&mut self) -> Option<Self::Item> {
-        (!self.next_node.is_null()).then(|| {
+        (!self.next_node.0.is_null()).then(|| {
             let ptr = self.next_node;
-            self.next_node = unsafe { *(ptr as *mut NodePtr) };
+            self.next_node = unsafe { (*(ptr.0 as *mut NodeRelationships)).next_sibling };
             ptr
         })
     }
@@ -126,31 +94,30 @@ impl Iterator for NodePtrIterator {
 mod tests {
     use super::*;
 
-    use std::sync::{Arc, Mutex};
+    use std::sync::Mutex;
 
     use util::arena::Arena;
 
+    use crate::allocate_action_nodes;
     use crate::dummy::*;
-    use crate::game::Event;
-    use crate::TreeAllocator;
+    use crate::game::{Game, ParameterMapping};
 
     #[test]
     fn test_iterator() {
-        let allocator = TreeAllocator::<X, P>::new(Arc::new(Mutex::new(Arena::with_capacity(300))));
+        let arena = Mutex::new(Arena::with_capacity(300));
 
-        let events = [
-            Event::Action([1; 6]),
-            Event::Action([2; 6]),
-            Event::Action([3; 6]),
-            Event::Action([4; 6]),
-            Event::Action([5; 6]),
-        ];
+        let events = [[1; 6], [2; 6], [3; 6], [4; 6], [5; 6]];
 
         let (ptr, slice) = unsafe {
-            let ptr = allocator.allocate(&X, &events).unwrap();
+            let ptr = allocate_action_nodes::<X, P>(
+                &events,
+                <X as Game>::ParameterMapping::get_parameter_count(&X),
+                &arena,
+            )
+            .unwrap();
             (
                 ptr,
-                std::slice::from_raw_parts(ptr as *const ActionNode<[u8; 6], P>, events.len()),
+                std::slice::from_raw_parts(ptr.0 as *const ActionNode<[u8; 6], P>, events.len()),
             )
         };
 
@@ -166,7 +133,7 @@ mod tests {
             .into_iter()
             .zip(slice.iter().map(|n| n as *const ActionNode<[u8; 6], u8>))
         {
-            assert_eq!(i as *const (), j as *const (), "incorrect sibling");
+            assert_eq!(i.0 as *const (), j as *const (), "incorrect sibling");
         }
     }
 }

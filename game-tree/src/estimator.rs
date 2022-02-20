@@ -30,8 +30,8 @@ where
 
         estimator.arena.allocate::<RootNode>(1).unwrap();
 
-        let mut events = Vec::new();
-        estimator.build_tree(root_state, &mut events);
+        let mut events_buffer = Vec::new();
+        estimator.build_tree(root_state, &mut events_buffer);
 
         estimator
     }
@@ -55,38 +55,42 @@ where
         (self.arena.len(), self.arena.len() + max_offset)
     }
 
-    fn build_tree(&mut self, state: G::State, events: &mut Vec<Event<G::Action, G::Chance>>) {
+    fn build_tree(
+        &mut self,
+        state: G::State,
+        events_buffer: &mut Vec<Event<G::Action, G::Chance>>,
+    ) {
         let stage = G::get_stage(&state);
 
         if stage.is_terminal() {
             return;
         }
 
-        events.clear();
-        G::populate_events(&state, events);
+        events_buffer.clear();
+        G::populate_events(&state, events_buffer);
 
-        if !stage.is_chance() {
+        if stage.is_action() {
             self.arena
-                .allocate::<ActionNode<G::Action, P>>(events.len())
+                .allocate::<ActionNode<G::Action, P>>(events_buffer.len())
                 .unwrap();
-            self.action += events.len();
+            self.action += events_buffer.len();
 
-            let parameters = events.len() * G::ParameterMapping::get_parameter_count(&state);
+            let parameters = events_buffer.len() * G::ParameterMapping::get_parameter_count(&state);
             self.arena.allocate::<P>(parameters).unwrap();
             self.parameters += parameters;
         } else {
             self.arena
-                .allocate::<ChanceNode<G::Chance>>(events.len())
+                .allocate::<ChanceNode<G::Chance>>(events_buffer.len())
                 .unwrap();
-            self.chance += events.len();
+            self.chance += events_buffer.len();
         }
 
-        let mut next_events = Vec::new();
+        let mut next_events_buffer = Vec::new();
 
-        for &mut e in events {
+        for &mut e in events_buffer {
             let mut next_state = state.clone();
             G::advance_state(&mut next_state, e);
-            self.build_tree(next_state, &mut next_events);
+            self.build_tree(next_state, &mut next_events_buffer);
         }
     }
 }

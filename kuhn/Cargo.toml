@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 game-tree = { path = "../game-tree" }
 rand = "0.8"
+
+[dev-dependencies]
+util = { path = "../util" }

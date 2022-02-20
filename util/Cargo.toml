@@ -10,3 +10,4 @@ edition = "2018"
 testing = []
 
 [dependencies]
+rand = "0.8"

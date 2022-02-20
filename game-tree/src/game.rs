@@ -1,19 +1,21 @@
+use std::fmt;
 use std::mem::MaybeUninit;
 
 use rand::Rng;
 
 pub trait Game {
-    type Action: Copy;
-    type Chance: Copy;
+    type Action: Copy + fmt::Debug;
+    type Chance: Copy + fmt::Debug;
     type ParameterMapping: ParameterMapping<State = Self::State>;
     type Stage: Stage;
-    type State;
-    type Utility;
+    type State: Clone;
 
     fn advance_state(state: &mut Self::State, event: Event<Self::Action, Self::Chance>);
 
     /// Solvers will assume that all events placed into the array are of the same Event variant.
     fn populate_events(state: &Self::State, events: &mut Vec<Event<Self::Action, Self::Chance>>);
+
+    fn get_chance_weight(state: &Self::State, event: Self::Chance) -> f32;
 
     /// Returns the sampled chance event, and the index into the populated events array.
     fn sample_chance<R: Rng>(state: &Self::State, rng: &mut R) -> (Self::Chance, usize);
@@ -26,7 +28,7 @@ pub trait Game {
     /// very large chance nodes in a progressive tree search.
     fn get_branching_hint(state: &Self::State) -> usize;
 
-    fn get_terminal_utilities(state: &Self::State, utilities: &mut [Self::Utility]);
+    fn get_terminal_utilities(state: &Self::State, utilities: &mut [f32]);
 }
 
 pub trait ParameterMapping {
@@ -37,18 +39,34 @@ pub trait ParameterMapping {
 }
 
 pub trait Stage {
+    fn is_action(&self) -> bool;
     fn is_chance(&self) -> bool;
     fn is_terminal(&self) -> bool;
+
+    fn player_to_act(&self) -> Option<usize>;
 }
 
 pub trait Parameter {
-    fn initialize(parameters: *mut MaybeUninit<Self>, count: usize) -> *mut Self
+    fn initialize(parameters: &mut [MaybeUninit<Self>]) -> &mut [Self]
     where
         Self: Sized;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum Event<A, C> {
     Action(A),
     Chance(C),
+}
+
+impl<A, C> fmt::Debug for Event<A, C>
+where
+    A: fmt::Debug,
+    C: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Event::Action(a) => a.fmt(f),
+            Event::Chance(c) => c.fmt(f),
+        }
+    }
 }
