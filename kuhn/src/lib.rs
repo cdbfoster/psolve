@@ -35,7 +35,7 @@ impl Stage for KuhnStage {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum KuhnAction {
     Bet,   // Also call if not the first bettor.
     Check, // Also fold if not the first bettor.
@@ -176,7 +176,11 @@ impl<const N: usize> Game for KuhnGame<N> {
 
         utilities.iter_mut().enumerate().for_each(|(i, u)| {
             if i == winner {
-                *u = pot as f32;
+                *u = if state.called[i] {
+                    pot as f32 - 2.0
+                } else {
+                    pot as f32 - 1.0
+                }
             } else {
                 *u = if state.called[i] { -2.0 } else { -1.0 }
             }
@@ -200,6 +204,29 @@ impl<const N: usize> ParameterMapping for KuhnParameterMapping<N> {
             panic!("no parameter index for a non-player action stage")
         }
     }
+
+    fn get_parameter_description(state: &Self::State, alternate_index: Option<usize>) -> String {
+        assert!(N < 13, "too many players to describe");
+
+        let index = if let KuhnStage::PlayerAction(player) = state.stage {
+            if let Some(index) = alternate_index {
+                index
+            } else {
+                state.cards[player as usize] as usize
+            }
+        } else {
+            panic!("no parameter index for a non-player action stage");
+        };
+
+        assert!(index < N + 1, "parameter index is out of bounds");
+
+        const CARDS: [char; 13] = [
+            'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K',
+        ];
+
+        let card_index = 12 - N + index;
+        CARDS[card_index].to_string()
+    }
 }
 
 #[cfg(test)]
@@ -208,15 +235,121 @@ mod tests {
 
     use std::sync::Mutex;
 
+    use rand::SeedableRng;
+
     use game_tree::{allocate_tree, TreeEstimator};
+    use solver::{dump_strategy, Cfr, CfrParameter, Solver};
     use util::arena::Arena;
+    use util::rng::JKiss32Rng;
+
+    #[test]
+    fn test_kuhn_utilities() {
+        const COMBOS: [[u8; 2]; 6] = [[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]];
+
+        // check-check
+
+        let utilities = [
+            [-1.0, 1.0],
+            [-1.0, 1.0],
+            [1.0, -1.0],
+            [-1.0, 1.0],
+            [1.0, -1.0],
+            [1.0, -1.0],
+        ];
+
+        for (combo, expected) in COMBOS.iter().zip(utilities.iter()) {
+            let state = KuhnState {
+                cards: *combo,
+                bet: false,
+                called: [false; 2],
+                stage: KuhnStage::Showdown,
+            };
+
+            let mut result = [0.0; 2];
+            KuhnGame::get_terminal_utilities(&state, &mut result);
+
+            assert_eq!(*expected, result, "incorrect check-check utilities",);
+        }
+
+        // check-bet-fold
+
+        let utilities = [
+            [-1.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, 1.0],
+        ];
+
+        for (combo, expected) in COMBOS.iter().zip(utilities.iter()) {
+            let state = KuhnState {
+                cards: *combo,
+                bet: true,
+                called: [false, true],
+                stage: KuhnStage::Showdown,
+            };
+
+            let mut result = [0.0; 2];
+            KuhnGame::get_terminal_utilities(&state, &mut result);
+
+            assert_eq!(*expected, result, "incorrect check-bet-fold utilities",);
+        }
+
+        // bet-fold
+
+        let utilities = [
+            [1.0, -1.0],
+            [1.0, -1.0],
+            [1.0, -1.0],
+            [1.0, -1.0],
+            [1.0, -1.0],
+            [1.0, -1.0],
+        ];
+
+        for (combo, expected) in COMBOS.iter().zip(utilities.iter()) {
+            let state = KuhnState {
+                cards: *combo,
+                bet: true,
+                called: [true, false],
+                stage: KuhnStage::Showdown,
+            };
+
+            let mut result = [0.0; 2];
+            KuhnGame::get_terminal_utilities(&state, &mut result);
+
+            assert_eq!(*expected, result, "incorrect bet-fold utilities",);
+        }
+
+        // bet-call and check-bet-call
+
+        let utilities = [
+            [-2.0, 2.0],
+            [-2.0, 2.0],
+            [2.0, -2.0],
+            [-2.0, 2.0],
+            [2.0, -2.0],
+            [2.0, -2.0],
+        ];
+
+        for (combo, expected) in COMBOS.iter().zip(utilities.iter()) {
+            let state = KuhnState {
+                cards: *combo,
+                bet: true,
+                called: [true; 2],
+                stage: KuhnStage::Showdown,
+            };
+
+            let mut result = [0.0; 2];
+            KuhnGame::get_terminal_utilities(&state, &mut result);
+
+            assert_eq!(*expected, result, "incorrect bet-call utilities",);
+        }
+    }
 
     #[test]
     fn test_tree_estimate() {
         const N: usize = 3;
-
-        type CfrParameter = [f32; 2];
-
         let root_state = KuhnState::from_cards([0; N]);
 
         let estimator = TreeEstimator::<KuhnGame<N>, CfrParameter>::from_root(root_state);
@@ -225,5 +358,47 @@ mod tests {
         assert_eq!(estimator.chance_nodes(), 0);
         assert_eq!(estimator.parameters(), 96);
         assert_eq!(estimator.memory_bounds(), (1552, 1559));
+    }
+
+    #[test]
+    fn test_tree_allocation_size() {
+        const N: usize = 2;
+        let root_state = KuhnState::from_cards([0; N]);
+
+        let estimator = TreeEstimator::<KuhnGame<N>, CfrParameter>::from_root(root_state);
+        let memory_bounds = estimator.memory_bounds();
+
+        let arena = Mutex::new(Arena::with_capacity(10000));
+        let _root = allocate_tree::<KuhnGame<N>, CfrParameter>(&root_state, &arena)
+            .expect("could not allocate tree");
+        let size = arena.lock().unwrap().len();
+
+        assert!(size >= memory_bounds.0, "tree is smaller than expected");
+        assert!(size <= memory_bounds.1, "tree is larger than expected");
+    }
+
+    #[test]
+    fn test_kuhn_solve() {
+        const N: usize = 3;
+        let root_state = KuhnState::from_cards([0, 1, 2]);
+
+        let arena = {
+            let estimator = TreeEstimator::<KuhnGame<N>, CfrParameter>::from_root(root_state);
+            Mutex::new(Arena::with_capacity(estimator.memory_bounds().1))
+        };
+
+        let root = allocate_tree::<KuhnGame<N>, CfrParameter>(&root_state, &arena)
+            .expect("could not allocate tree");
+
+        let mut solver = Cfr::<N>;
+
+        let mut rng = JKiss32Rng::seed_from_u64(0);
+
+        for i in 0..100000 {
+            let state = KuhnState::random(&mut rng);
+            <Cfr<N> as Solver<KuhnGame<N>>>::iterate(&mut solver, root, state, i);
+        }
+
+        dump_strategy::<KuhnGame<N>, Cfr<N>, CfrParameter>(root, root_state, &solver);
     }
 }

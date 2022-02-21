@@ -31,6 +31,6 @@ where
     T: Copy + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Volatile").field(&self.read()).finish()
+        self.read().fmt(f)
     }
 }

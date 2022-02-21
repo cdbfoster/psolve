@@ -33,6 +33,9 @@ impl ParameterMapping for X {
     fn get_parameter_index(_: &X) -> usize {
         0
     }
+    fn get_parameter_description(_: &X, _: Option<usize>) -> String {
+        String::new()
+    }
 }
 
 #[rustfmt::skip]

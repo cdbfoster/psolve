@@ -4,8 +4,8 @@ use std::mem::MaybeUninit;
 use rand::Rng;
 
 pub trait Game {
-    type Action: Copy + fmt::Debug;
-    type Chance: Copy + fmt::Debug;
+    type Action: Copy + fmt::Debug + PartialEq;
+    type Chance: Copy + fmt::Debug + PartialEq;
     type ParameterMapping: ParameterMapping<State = Self::State>;
     type Stage: Stage;
     type State: Clone;
@@ -36,6 +36,10 @@ pub trait ParameterMapping {
 
     fn get_parameter_count(state: &Self::State) -> usize;
     fn get_parameter_index(state: &Self::State) -> usize;
+
+    /// If `alternate_index` is specified, return the description for the parameter at that
+    /// index instead of the one indicated by the state.
+    fn get_parameter_description(state: &Self::State, alternate_index: Option<usize>) -> String;
 }
 
 pub trait Stage {

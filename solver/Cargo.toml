@@ -1,5 +1,5 @@
 [package]
-name = "kuhn"
+name = "solver"
 version = "0.1.0"
 authors = ["Chris Foster <cdbfoster@gmail.com>"]
 edition = "2018"
@@ -9,7 +9,4 @@ edition = "2018"
 [dependencies]
 game-tree = { path = "../game-tree" }
 rand = "0.8"
-
-[dev-dependencies]
-solver = { path = "../solver" }
 util = { path = "../util" }
