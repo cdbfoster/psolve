@@ -35,7 +35,7 @@ where
     P: Parameter,
 {
     assert!(
-        actions.len() > 0,
+        !actions.is_empty(),
         "must provide at least one action to allocate"
     );
     assert!(

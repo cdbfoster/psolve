@@ -89,7 +89,7 @@ impl<const N: usize> Cfr<N> {
 
                 let next_reach = action_strategy * reach_probabilities.0[player];
 
-                let mut next_reach_probabilities = reach_probabilities.clone();
+                let mut next_reach_probabilities = reach_probabilities;
                 next_reach_probabilities.0[player] = next_reach;
 
                 // Update cumulative strategy.
@@ -142,9 +142,9 @@ impl<const N: usize> Cfr<N> {
     where
         G: Game,
     {
-        G::get_stage(&state)
+        G::get_stage(state)
             .is_action()
-            .then(|| G::ParameterMapping::get_parameter_index(&state))
+            .then(|| G::ParameterMapping::get_parameter_index(state))
             .unwrap_or(0)
     }
 

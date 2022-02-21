@@ -33,10 +33,15 @@ where
     S: Solver<G, Parameter = P>,
     P: Debug,
 {
+    /// An action, followed by the frequency of that action, and optionally the parameter
+    /// associated with this information state.  The parameter might not be present if
+    /// some nodes don't have all of their actions expanded.
+    type StrategyAction<'a, A, P> = (A, (f32, Option<&'a P>));
+
     fn print_information_state<G, P>(
         hidden_information: &str,
         history: &[Event<G::Action, G::Chance>],
-        strategy: &[(G::Action, (f32, Option<&P>))],
+        strategy: &[StrategyAction<'_, G::Action, P>],
     ) where
         G: Game,
         P: Debug,
@@ -75,10 +80,7 @@ where
             let mut actions = Vec::with_capacity(G::get_branching_hint(&state));
             G::populate_events(&state, &mut actions);
 
-            let mut strategy = Vec::with_capacity(actions.len());
-            for _ in 0..actions.len() {
-                strategy.push(0.0);
-            }
+            let mut strategy = vec![0.0; actions.len()];
 
             for i in 0..G::ParameterMapping::get_parameter_count(&state) {
                 solver.get_strategy(node, &state, Some(i), &mut strategy);
